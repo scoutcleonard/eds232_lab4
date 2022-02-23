@@ -1,8 +1,17 @@
 ---
-title: "Lab 4c. Deep Learning - iNaturalist"
-editor_options: 
-  chunk_output_type: console
+title: 'Machine Learning, Lab 4: Deep Learning'
+author: "Scout Leonard"
+date: "2/23/2022"
+output:
+  prettydoc::html_pretty:
+      theme: cayman
+  toc: true
+  toc_float: true
+  code_folding: show
+  theme: flat
 ---
+
+# Load Libraries
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = T)
@@ -24,6 +33,8 @@ if (!keras::is_keras_available())
   keras::install_keras()
 ```
 
+# Assignment Overview, Background, and Objectives
+
 ## Deep Learning with R / Python Exercises
 
 You'll first learn about Computer Vision techniques by going through the Chapter 5 lab exercises:
@@ -44,6 +55,8 @@ The subsequent lab exercises meet the limits of using a CPU over a GPU, which is
 The main lab that you'll turn in is to apply these techniques to a small subset of the iNaturalist species imagery. These data were downloaded from the links provided at [github.com/visipedia/inat_comp:2021/](https://github.com/visipedia/inat_comp/tree/master/2021). Of all the 10,000 species and many images for each from training (Train), training mini (Train Mini), validation (Val) and test images, you'll draw only from the Train Mini set of images:
 
 ![](https://github.com/visipedia/inat_comp/raw/master/2021/assets/train_val_distribution.png)
+
+# 2 Species Pre-Processing of Images
 
 ```{r}
 # path to folder containing species directories of images
@@ -70,12 +83,6 @@ i2 <- i10[1:2]
 i2
 species_2 <- basename(dirs_spp)[i2]
 ```
-
-Your task is to apply your deep learning skills to build the following models:
-
-# Pre-Processing the Images
-
-## 2 Species
 
 ```{r}
 #create base file paths
@@ -156,11 +163,11 @@ batch <- generator_next(train_generator)
 str(batch)
 ```
 
-# Binary Classification
+# Apply Images to Binary Classification Deep Learning Models
+
+## Binary Classification: Neural Net
 
 1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
-
-## Making the Model
 
 ```{r}
 model <- keras_model_sequential() %>% 
@@ -205,6 +212,8 @@ test_generator <- flow_images_from_directory(
 
 model %>% evaluate_generator(test_generator, steps = 50)
 ```
+
+## Binary Classification: Covolutional Neural Net
 
 2. **2 Species (binary classification) - convolutional neural net**. Draw from the [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html).
 
@@ -256,7 +265,7 @@ test_generator_2 <- flow_images_from_directory(
 model %>% evaluate(test_generator_2, steps = 50)
 ```
 
-## 10 Species Pre-processing
+# 10 Species Pre-Processing of Images
 
 ```{r}
 train_10_dir <- file.path(base_dir, "train_10")
@@ -274,7 +283,6 @@ for (i in 1:length(species_10)){
   dir.create(file.path(test_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
 }
 ```
-
 
 ```{r}
 # create test, validation, and training groups of images for 10 species
@@ -331,6 +339,10 @@ batch <- generator_next(train_generator_10)
 str(batch)
 ```
 
+# Apply Images to Multi-Class Classification Deep Learning Models 
+
+## Multi-Class Classification: Neural Net
+
 3. **10 Species (multi-class classification) - neural net**.  Draw from [3.5 📰 Newswires (multi-class classification)](./lab4b_examples.html).
 
 ```{r}
@@ -370,6 +382,8 @@ test_generator_3 <- flow_images_from_directory(
 )
 model %>% evaluate(test_generator_3, steps = 50)
 ```
+
+## Multi-Class Classification: Convolutional Neural Net
 
 4. **10 Species (multi-class classification) - convolutional neural net**. Draw from [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html) and update necessary values to go from binary to mult-class classification.
 
