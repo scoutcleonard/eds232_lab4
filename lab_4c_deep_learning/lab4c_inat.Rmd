@@ -63,7 +63,7 @@ Sys.info()[["user"]] %>%
 # show the 10 indices sampled of the 10,000 possible 
 i10 <- sample(1:n_spp, 10)
 i10
-species10 <- basename(dirs_spp)[i10]
+species_10 <- basename(dirs_spp)[i10]
 
 # show the first 2 species directory names
 i2 <- i10[1:2]
@@ -73,13 +73,9 @@ species_2 <- basename(dirs_spp)[i2]
 
 Your task is to apply your deep learning skills to build the following models:
 
-# Binary Classification
+# Pre-Processing the Images
 
-1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
-
-## Pre-Processing the Images
-
-### 2 Species
+## 2 Species
 
 ```{r}
 #create base file paths
@@ -95,9 +91,9 @@ dir.create(test_2_dir)
 
 #create folder for each species
 for (i in 1:length(species_2)){
-  dir.create(file.path(train_2_dir, str_sub(species2[[i]], start = 1, end = 5)))
-  dir.create(file.path(validation_2_dir, str_sub(species2[[i]], start = 1, end = 5)))
-  dir.create(file.path(test_2_dir, str_sub(species2[[i]], start = 1, end = 5)))
+  dir.create(file.path(train_2_dir, str_sub(species_2[[i]], start = 1, end = 5)))
+  dir.create(file.path(validation_2_dir, str_sub(species_2[[i]], start = 1, end = 5)))
+  dir.create(file.path(test_2_dir, str_sub(species_2[[i]], start = 1, end = 5)))
 }
 ```
 
@@ -136,7 +132,7 @@ train_generator <- flow_images_from_directory(
   train_datagen,
   # All images will be resized to 150x150
   target_size = c(150, 150),
-  batch_size = 20,
+  batch_size = 5,
   # Since we use binary_crossentropy loss, we need binary labels
   class_mode = "binary")
 
@@ -144,14 +140,14 @@ validation_generator <- flow_images_from_directory(
   validation_2_dir,
   validation_datagen,
   target_size = c(150, 150),
-  batch_size = 20,
+  batch_size = 5,
   class_mode = "binary")
 
 test_generator <- flow_images_from_directory(
   test_2_dir,
   test_datagen,
   target_size = c(150, 150),
-  batch_size = 20,
+  batch_size = 5,
   class_mode = "binary")
 ```
 
@@ -160,7 +156,14 @@ batch <- generator_next(train_generator)
 str(batch)
 ```
 
-2. **2 Species (binary classification) - convolutional neural net**. Draw from the [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html).
+
+
+
+# Binary Classification
+
+1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
+
+## Making the Model
 
 ```{r}
 model <- keras_model_sequential() %>% 
@@ -171,11 +174,10 @@ model <- keras_model_sequential() %>%
 ```
 
 ```{r}
-model <- keras_model_sequential() %>% 
-  layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
-  layer_flatten() %>% 
-  layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units =  1, activation = "sigmoid")
+model %>% compile(
+  optimizer = "rmsprop",
+  loss      = "binary_crossentropy",
+  metrics   = c("accuracy"))
 ```
 
 ```{r}
@@ -187,20 +189,240 @@ history <- model %>% fit(
     validation_steps = 5)
 ```
 
+```{r}
+plot(history)
+```
+
+```{r}
+history
+```
+
+```{r}
+test_generator <- flow_images_from_directory(
+  test_2_dir,
+  test_datagen,
+  target_size = c(150, 150),
+  batch_size = 5,
+  class_mode = "binary"
+)
+
+model %>% evaluate_generator(test_generator, steps = 50)
+```
+
+2. **2 Species (binary classification) - convolutional neural net**. Draw from the [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html).
+
+```{r}
+# write the model 
+model <- keras_model_sequential() %>% 
+  layer_conv_2d(
+    filters = 32, kernel_size = c(3, 3), activation = "relu",
+    input_shape = c(150, 150, 3)) %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_flatten() %>% 
+  layer_dropout(rate = 0.5) %>% 
+  layer_dense(units = 512, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")  
+  
+model %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc"))
+```
+
+```{r}
+history_2 <- model %>% fit(
+    train_generator,
+    steps_per_epoch = 5,
+    epochs = 30,
+    validation_data = validation_generator,
+    validation_steps = 5)
+```
+
+```{r}
+history_2
+```
+
+```{r}
+test_generator_2 <- flow_images_from_directory(
+  test_2_dir,
+  test_datagen,
+  target_size = c(150, 150),
+  batch_size = 20,
+  class_mode = "binary"
+)
+model %>% evaluate(test_generator_2, steps = 50)
+```
+
+## 10 Species Pre-processing
+
+```{r}
+train_10_dir <- file.path(base_dir, "train_10")
+validation_10_dir <- file.path(base_dir, "validation_10")
+test_10_dir <- file.path(base_dir, "test_10")
+
+dir.create(train_10_dir)
+dir.create(validation_10_dir)
+dir.create(test_10_dir)
+
+#create folder for each species
+for (i in 1:length(species_10)){
+  dir.create(file.path(train_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+  dir.create(file.path(validation_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+  dir.create(file.path(test_10_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+}
+```
+
+
+```{r}
+# create test, validation, and training groups of images for 10 species
+for(i in 1:length(species_10)){
+  # create 5 groups of 10 random samples
+  species_samples_10 <- replicate(5, 
+                                  sample(list.files(paste0(dir_train_mini, "/", species_10[[i]]), 
+                                                    full.names = TRUE), replace = FALSE, 10))
+  ## train n = 30 ##
+  train <- rbind(species_samples_10[,1], species_samples_10[,2], species_samples_10[,3])
+  file.copy(from = train, 
+            to = paste0(train_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+  ## validation n = 10 ##
+  validate <- species_samples_10[,4]
+  file.copy(from = validate,
+            to = paste0(validation_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+  ## train n = 10 ##
+  test <- species_samples_10[,5]
+  file.copy(from = test,
+            to = paste0(test_10_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+}
+```
+
+```{r}
+test_datagen_10 <- image_data_generator(rescale = 1/255)
+train_datagen_10 <- image_data_generator(rescale = 1/255)
+validation_datagen_10 <- image_data_generator(rescale = 1/255)
+```
+
+```{r}
+train_generator_10 <- flow_images_from_directory(
+  # This is the target directory
+  train_10_dir,
+  # This is the data generator
+  train_datagen_10,
+  # All images will be resized to 150x150
+  target_size = c(150, 150),
+  batch_size = 5,
+  # change label to categorical 
+  class_mode = "categorical")
+```
+
+```{r}
+validation_generator_10 <- flow_images_from_directory(
+  validation_10_dir,
+  validation_datagen_10,
+  target_size = c(150, 150),
+  batch_size = 5,
+  class_mode = "categorical")
+```
+
+```{r}
+batch <- generator_next(train_generator_10)
+str(batch)
+```
 
 3. **10 Species (multi-class classification) - neural net**.  Draw from [3.5 📰 Newswires (multi-class classification)](./lab4b_examples.html).
 
 ```{r}
+model <- keras_model_sequential() %>% 
+  layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
+  layer_flatten() %>% 
+  layer_dense(units = 16, activation = "relu") %>% 
+  layer_dense(units =  1, activation = "softmax")
 
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "categorical_crossentropy",
+  metrics = c("accuracy")
+)
 ```
 
+```{r}
+history_3 <- model %>% fit(
+  train_generator_10,
+  steps_per_epoch = 5,
+  epochs = 30,
+  validation_data = validation_generator_10,
+  validation_steps = 5)
+```
+
+```{r}
+history_3
+```
+
+```{r}
+test_generator_3 <- flow_images_from_directory(
+  test_10_dir,
+  test_datagen_10,
+  target_size = c(150, 150),
+  batch_size = 20,
+  class_mode = "categorical"
+)
+model %>% evaluate(test_generator_3, steps = 50)
+```
 
 4. **10 Species (multi-class classification) - convolutional neural net**. Draw from [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html) and update necessary values to go from binary to mult-class classification.
 
 ```{r}
-
+# make the new model  
+model <- keras_model_sequential() %>% 
+  layer_conv_2d(
+    filters = 32, kernel_size = c(3, 3), activation = "relu",
+    input_shape = c(150, 150, 3)) %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>% 
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>% 
+  layer_flatten() %>% 
+  layer_dropout(rate = 0.5) %>% 
+  layer_dense(units = 512, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")  
+  
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc"))
 ```
 
+```{r}
+history_3 <- model %>% fit(
+    train_generator_10,
+    steps_per_epoch = 5,
+    epochs = 30,
+    validation_data = validation_generator_10,
+    validation_steps = 5)
+```
+
+```{r}
+history_3
+```
+
+```{r}
+test_generator_4 <- flow_images_from_directory(
+  test_10_dir,
+  test_datagen_10,
+  target_size = c(150, 150),
+  batch_size = 20,
+  class_mode = "categorical"
+)
+model %>% evaluate(test_generator_4, steps = 50)
+```
 
 In your models, be sure to include the following:
 
