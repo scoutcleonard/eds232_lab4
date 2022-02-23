@@ -156,9 +156,6 @@ batch <- generator_next(train_generator)
 str(batch)
 ```
 
-
-
-
 # Binary Classification
 
 1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
