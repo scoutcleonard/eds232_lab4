@@ -1,0 +1,312 @@
+---
+title: "Lab 4c. Deep Learning - iNaturalist"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+
+librarian::shelf("tensorflow",
+                 "keras",
+                 "dplyr")
+
+install_tensorflow()
+tf$constant("Hellow Tesnorflow")
+```
+
+## Deep Learning with R / Python Exercises
+
+You'll first learn about Computer Vision techniques by going through the Chapter 5 lab exercises:
+
+- 5.1 Introduction to convnets
+  R: [html](./lab4c_5.1.intro-convnets.html), [Rmd](https://raw.githubusercontent.com/bbest/eds232-ml/main/lab4c_5.1.intro-convnets.Rmd) ; Python: [html](https://github.com/fchollet/deep-learning-with-python-notebooks/blob/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.2-using-convnets-with-small-datasets.ipynb), [ipynb](https://raw.githubusercontent.com/fchollet/deep-learning-with-python-notebooks/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.2-using-convnets-with-small-datasets.ipynb)
+
+- 5.2 Training a convnet from scratch on a small dataset
+  R: [html](./lab4c_5.2.small-convnets.html), [Rmd](https://raw.githubusercontent.com/bbest/eds232-ml/main/lab4c_5.2.small-convnets.Rmd) ; Python: [html](https://github.com/fchollet/deep-learning-with-python-notebooks/blob/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.1-introduction-to-convnets.ipynb), [ipynb](https://raw.githubusercontent.com/fchollet/deep-learning-with-python-notebooks/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.1-introduction-to-convnets.ipynb)
+
+The subsequent lab exercises meet the limits of using a CPU over a GPU, which is not available on `taylor.bren.ucsb.edu`. Here's as far as I was able to get for demonstration sake, but you're not expected to run this. You might want to try if you have personal computer with a GPU setup.
+
+- 5.3 Using a pretrained convnet
+  R: [html](./lab4c_5.3-using-a-pretrained-convnet.html), [Rmd](https://raw.githubusercontent.com/bbest/eds232-ml/main/lab4c_5.3-using-a-pretrained-convnet.Rmd) ; Python: [html](https://github.com/fchollet/deep-learning-with-python-notebooks/blob/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.3-using-a-pretrained-convnet.ipynb), [ipynb](https://raw.githubusercontent.com/fchollet/deep-learning-with-python-notebooks/8a30b90fed187aaddaaf1fc868ec8e0ac92bca40/5.3-using-a-pretrained-convnet.ipynb)
+
+## iNaturalist
+
+The main lab that you'll turn in is to apply these techniques to a small subset of the iNaturalist species imagery. These data were downloaded from the links provided at [github.com/visipedia/inat_comp:2021/](https://github.com/visipedia/inat_comp/tree/master/2021). Of all the 10,000 species and many images for each from training (Train), training mini (Train Mini), validation (Val) and test images, you'll draw only from the Train Mini set of images:
+
+![](https://github.com/visipedia/inat_comp/raw/master/2021/assets/train_val_distribution.png)
+
+
+```{r, echo=F, eval=F}
+# in Terminal:
+#   cd /courses/EDS232; mkdir 'inaturalist-2021'
+#   curl -o train_mini.tar.gz https://ml-inat-competition-datasets.s3.amazonaws.com/2021/train_mini.tar.gz
+#   tar -xzf train_mini.tar.gz 
+# 
+# librarian::shelf(
+#   dplyr, glue, jsonlite, listviewer, purrr, readr, tidyjson, tidyr)
+# 
+# train_mini <- jsonlite::read_json("~/courses/EDS232/inaturalist-2021/train_mini.json")
+# 
+# write_meta <- function(m){
+#   train_mini[[m]]  %>% 
+#     tidyjson::spread_all() %>% 
+#     tibble() %>% 
+#     select(-document.id, -`..JSON`) %>% 
+#     write_csv(
+#       glue("~/Desktop/iNat/train_mini_{m}.csv"))
+# }
+# write_meta("images")
+# write_meta("annotations")
+# write_meta("categories")
+```
+
+The images are available under
+
+```{r}
+librarian::shelf(
+  digest, dplyr)
+
+# path to folder containing species directories of images
+dir_train_mini <- "/courses/EDS232/inaturalist-2021/train_mini"
+
+# path to output table of paths, which could be read by R, eg read_csv(), or Python, eg 
+inat_spp_dirs_csv <- "~/inat_species_dirs.csv"
+
+# get list of directories, one per species (n = 10,000 species)
+dirs_spp <- list.dirs(dir_train_mini, recursive = F)
+n_spp <- length(dirs_spp)
+n_spp
+#10000
+
+# set seed (for reproducible results) 
+# just before sampling (otherwise get different results)
+# based on your username (unique amongst class)
+Sys.info()[["user"]] %>% 
+  digest::digest2int() %>% 
+  set.seed()
+i10 <- sample(1:n_spp, 10)
+
+# show the 10 indices sampled of the 10,000 possible 
+i10
+
+# show the 10 species directory names
+basename(dirs_spp)[i10]
+
+# show the first 2 species directory names
+i2 <- i10[1:2]
+basename(dirs_spp)[i2]
+
+#assign species names to inat images folders for 2 species 
+cc <- "05765_Plantae_Chlorophyta_Ulvophyceae_Cladophorales_Cladophoraceae_Cladophora_columbiana/"
+rc <- "09629_Plantae_Tracheophyta_Magnoliopsida_Saxifragales_Grossulariaceae_Ribes_cynosbati/"
+```
+
+
+```{r}
+# # path to output table of paths, which could be read by R, eg readr::read_csv(), or Python, eg pandas.read_csv()
+# inat_spp_images_csv <- "~/EDS232/eds232_lab4/lab_4c_deep_learning/inat_spp_images.csv"
+# 
+# d <- tibble(
+#   # get 10 species names
+#   species = basename(dirs_spp)[i10],
+#   # assign TRUE/FALSE for: 10 species (multi-class) and 2 species (binary)
+#   spp10 = TRUE,
+#   spp2  = c(T,T,rep(F,8)))
+# DT::datatable(d)
+```
+
+```{r}
+# d <- d %>% 
+#   mutate(
+#     # construct full path to species directory
+#     dir_species = file.path(dir_train_mini, species),
+#     tbl_images  = purrr::map(dir_species, function(dir){
+#       # create a tibble per species
+#       tibble(
+#         # list files in the species directory (n=50)
+#         image = list.files(dir),
+#         # assign subset per species
+#         subset = c(rep("train", 30), rep("validation", 10), rep("test", 10))) })) %>% 
+#   # go from a tibble with 10 species rows containing a nested tbl_images to unnested, ie 10 species * 50 images = 500 rows
+#   tidyr::unnest(tbl_images)
+# 
+# # write tibble to CSV file for subsequent reading
+# readr::write_csv(d, inat_spp_images_csv)
+# 
+# # show counts of image files per species and subset
+# d %>% 
+#   mutate(
+#     # truncate species to show one line per species
+#     species_trunc = stringr::str_trunc(species, 40)) %>% 
+#   select(species_trunc, subset) %>% 
+#   table()
+```
+
+Your task is to apply your deep learning skills to build the following models:
+
+# Binary Classification
+
+1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
+
+**Pre-Processing the Images **
+
+```{r, echo=TRUE, results='hide'}
+# original_dataset_dir <- "/courses/EDS232/inaturalist-2021/train_mini"
+# base_dir             <- "/Users/scout/EDS232/eds232_lab4/lab_4c_deep_learning"
+# 
+# train_dir <- file.path(base_dir, "train")
+# train_cc_dir <- file.path(train_dir, "cc")
+# train_rc_dir <- file.path(train_dir, "rc")
+# validation_dir <- file.path(base_dir, "validation")
+# validation_cc_dir <- file.path(validation_dir, "cc")
+# validation_rc_dir <- file.path(validation_dir, "rc")
+# test_dir <- file.path(base_dir, "test")
+# test_cc_dir <- file.path(test_dir, "cc")
+# test_rc_dir <- file.path(test_dir, "rc")
+```
+
+```{r}
+# # base file paths
+# base_dir <- "/Users/scout/EDS232/eds232_lab4/lab_4c_deep_learning"
+# train_dir <- file.path(base_dir, "train")
+# validation_dir <- file.path(base_dir, "validation")
+# test_dir <- file.path(base_dir, "test")
+# 
+# # create base files (train, validate, test)
+# dir.create(train_dir)
+# dir.create(validation_dir)
+# dir.create(test_dir)
+# 
+# for (i in 1:length(species_10)){
+#   dir.create(file.path(train_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+#   dir.create(file.path(validation_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+#   dir.create(file.path(test_dir, str_sub(species_10[[i]], start = 1, end = 5)))
+# }
+
+for(i in 1:length(species_10)){
+  # create 5 groups of 10 random samples
+  species_samples_10 <- replicate(5, 
+                                  sample(list.files(paste0(original_dataset_dir, "/", species_10[[i]]), 
+                                                    full.names = TRUE), replace = FALSE, 10))
+  ## train n = 30 ##
+  train <- rbind(species_samples_10[,1], species_samples_10[,2], species_samples_10[,3])
+  file.copy(from = train, 
+            to = paste0(train_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+  ## validation n = 10 ##
+  validate <- species_samples_10[,4]
+  file.copy(from = validate,
+            to = paste0(validation_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+  ## train n = 10 ##
+  test <- species_samples_10[,5]
+  file.copy(from = test,
+            to = paste0(test_dir, "/", str_sub(species_10[[i]], start = 1, end = 5)))
+  }
+```
+
+
+```{r}
+dir.create(base_dir)
+dir.create(train_dir)
+dir.create(validation_dir)
+dir.create(test_dir)
+dir.create(train_cc_dir)
+dir.create(train_rc_dir)
+dir.create(validation_cc_dir)
+dir.create(validation_rc_dir)
+dir.create(test_cc_dir)
+dir.create(test_rc_dir)
+```
+
+```{r}
+#CC directory
+cc_dir <- paste0("/courses/EDS232/inaturalist-2021/train_mini/", cc)
+cc_files = list.files(cc_dir, full.names = TRUE)
+
+for(i in 1:length(cc_files)){
+  print(basename(cc_files[i]))
+}
+
+#RC directory
+rc_dir <- paste0("/courses/EDS232/inaturalist-2021/train_mini/", rc)
+rc_files = list.files(rc_dir, full.names = TRUE)
+
+for(i in length(rc_files)){
+  print(basename(rc_files[i]))
+}
+
+#test directories
+##CC
+fnames <- paste0("/cc.", 1:30, ".jpg")
+file.copy(file.path(cc_dir, fnames),
+          file.path(train_cc_dir))
+
+##RC
+
+```
+
+```{r}
+# All images will be rescaled by 1/255
+train_datagen <- image_data_generator(rescale = 1/255)
+validation_datagen <- image_data_generator(rescale = 1/255)
+test_datagen <- image_data_generator(rescale = 1/255)
+
+train_generator <- flow_images_from_directory(
+  # This is the target directory
+  train_dir,
+  # This is the data generator
+  train_datagen,
+  # All images will be resized to 150x150
+  target_size = c(150, 150),
+  batch_size = 20,
+  # Since we use binary_crossentropy loss, we need binary labels
+  class_mode = "binary")
+
+validation_generator <- flow_images_from_directory(
+  validation_dir,
+  validation_datagen,
+  target_size = c(150, 150),
+  batch_size = 20,
+  class_mode = "binary")
+
+test_generator <- flow_images_directory(
+  test_dir,
+  test_datagen,
+  target_size = c(150, 150),
+  batch_size = 20,
+  class_mode = "binary")
+```
+
+```{r}
+batch <- generator_next(train_generator)
+str(batch)
+```
+
+2. **2 Species (binary classification) - convolutional neural net**. Draw from the [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html).
+
+```{r}
+
+```
+
+
+3. **10 Species (multi-class classification) - neural net**.  Draw from [3.5 📰 Newswires (multi-class classification)](./lab4b_examples.html).
+
+```{r}
+
+```
+
+
+4. **10 Species (multi-class classification) - convolutional neural net**. Draw from [dogs vs cats example](https://bbest.github.io/eds232-ml/lab4c_5.2.small-convnets.html) and update necessary values to go from binary to mult-class classification.
+
+```{r}
+
+```
+
+
+In your models, be sure to include the following:
+
+- Split the original images per species (n=50) into train (n=30), validate (n=10) and test (n=10). These are almost absurdly few files to feed into these complex deep learning models but will serve as a good learning example.
+
+- Include accuracy metric and validation in the fitting process and history plot.
+
+- Evaluate loss and accuracy on your test model results. Compare standard neural network and convolutional neural network results.
