@@ -111,15 +111,15 @@ for(i in 1:length(species_2)){
   species_samples_2 <- replicate(5, 
                                   sample(list.files(paste0(dir_train_mini, "/", species_2[[i]]), 
                                                     full.names = TRUE), replace = FALSE, 10))
-  ## train n = 30 ##
+  ## train: n = 30 ##
   train <- rbind(species_samples_2[,1], species_samples_2[,2], species_samples_2[,3])
   file.copy(from = train, 
             to = paste0(train_2_dir, "/", str_sub(species_2[[i]], start = 1, end = 5)))
-  ## validation n = 10 ##
+  ## validation: n = 10 ##
   validate <- species_samples_2[,4]
   file.copy(from = validate,
             to = paste0(validation_2_dir, "/", str_sub(species_2[[i]], start = 1, end = 5)))
-  ## train n = 10 ##
+  ## train: n = 10 ##
   test <- species_samples_2[,5]
   file.copy(from = test,
             to = paste0(test_2_dir, "/", str_sub(species_2[[i]], start = 1, end = 5)))
