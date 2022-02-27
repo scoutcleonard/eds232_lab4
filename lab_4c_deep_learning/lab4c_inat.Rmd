@@ -170,7 +170,7 @@ str(batch)
 1. **2 Species (binary classification) - neural net**. Draw from [3.4 🍿 Movies (binary classification)](./lab4b_examples.html). You'll need to pre-process the images to be a consistent shape first though -- see 5.2.4 Data preprocessing.
 
 ```{r}
-model <- keras_model_sequential() %>% 
+model_1 <- keras_model_sequential() %>% 
   layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
   layer_flatten() %>% 
   layer_dense(units = 16, activation = "relu") %>% 
@@ -178,27 +178,27 @@ model <- keras_model_sequential() %>%
 ```
 
 ```{r}
-model %>% compile(
+model_1 %>% compile(
   optimizer = "rmsprop",
   loss      = "binary_crossentropy",
   metrics   = c("accuracy"))
 ```
 
 ```{r}
-history <- model %>% fit(
+history_1 <- model_1 %>% fit(
     train_generator,
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator,
-    validation_steps = 5)
+    validation_steps = 1)
 ```
 
 ```{r}
-plot(history)
+plot(history_1)
 ```
 
 ```{r}
-history
+history_1
 ```
 
 ```{r}
@@ -210,7 +210,10 @@ test_generator <- flow_images_from_directory(
   class_mode = "binary"
 )
 
-model %>% evaluate_generator(test_generator, steps = 50)
+model_1 %>% evaluate_generator(test_generator, steps = 50)
+
+#accuracy = .9
+#loss = .56
 ```
 
 ## Binary Classification: Covolutional Neural Net
@@ -219,7 +222,7 @@ model %>% evaluate_generator(test_generator, steps = 50)
 
 ```{r}
 # write the model 
-model <- keras_model_sequential() %>% 
+model_2 <- keras_model_sequential() %>% 
   layer_conv_2d(
     filters = 32, kernel_size = c(3, 3), activation = "relu",
     input_shape = c(150, 150, 3)) %>% 
@@ -235,19 +238,19 @@ model <- keras_model_sequential() %>%
   layer_dense(units = 512, activation = "relu") %>% 
   layer_dense(units = 1, activation = "sigmoid")  
   
-model %>% compile(
+model_2 %>% compile(
   loss = "binary_crossentropy",
   optimizer = optimizer_rmsprop(lr = 1e-4),
   metrics = c("acc"))
 ```
 
 ```{r}
-history_2 <- model %>% fit(
+history_2 <- model_2 %>% fit(
     train_generator,
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator,
-    validation_steps = 5)
+    validation_steps = 1)
 ```
 
 ```{r}
@@ -262,8 +265,12 @@ test_generator_2 <- flow_images_from_directory(
   batch_size = 20,
   class_mode = "binary"
 )
-model %>% evaluate(test_generator_2, steps = 50)
+model_2 %>% evaluate(test_generator_2, steps = 50)
+#loss = .19
+#accuracy = .9
 ```
+
+**For the binary models, the convolutional neural net is the best model becuase both models have the same accuracy, but the convlutional neural net has less loss.**
 
 # 10 Species Pre-Processing of Images
 
@@ -346,13 +353,13 @@ str(batch)
 3. **10 Species (multi-class classification) - neural net**.  Draw from [3.5 📰 Newswires (multi-class classification)](./lab4b_examples.html).
 
 ```{r}
-model <- keras_model_sequential() %>% 
+model_3 <- keras_model_sequential() %>% 
   layer_dense(units = 16, activation = "relu", input_shape = c(150, 150, 3)) %>%
   layer_flatten() %>% 
   layer_dense(units = 16, activation = "relu") %>% 
   layer_dense(units =  1, activation = "softmax")
 
-model %>% compile(
+model_3 %>% compile(
   optimizer = "rmsprop",
   loss = "categorical_crossentropy",
   metrics = c("accuracy")
@@ -360,12 +367,12 @@ model %>% compile(
 ```
 
 ```{r}
-history_3 <- model %>% fit(
+history_3 <- model_3 %>% fit(
   train_generator_10,
   steps_per_epoch = 5,
   epochs = 30,
   validation_data = validation_generator_10,
-  validation_steps = 5)
+  validation_steps = 10)
 ```
 
 ```{r}
@@ -380,7 +387,9 @@ test_generator_3 <- flow_images_from_directory(
   batch_size = 20,
   class_mode = "categorical"
 )
-model %>% evaluate(test_generator_3, steps = 50)
+model_3 %>% evaluate(test_generator_3, steps = 50)
+#loss = 2.24
+#accuracy = 0.9
 ```
 
 ## Multi-Class Classification: Convolutional Neural Net
@@ -389,7 +398,7 @@ model %>% evaluate(test_generator_3, steps = 50)
 
 ```{r}
 # make the new model  
-model <- keras_model_sequential() %>% 
+model_4 <- keras_model_sequential() %>% 
   layer_conv_2d(
     filters = 32, kernel_size = c(3, 3), activation = "relu",
     input_shape = c(150, 150, 3)) %>% 
@@ -405,23 +414,23 @@ model <- keras_model_sequential() %>%
   layer_dense(units = 512, activation = "relu") %>% 
   layer_dense(units = 1, activation = "sigmoid")  
   
-model %>% compile(
+model_4 %>% compile(
   loss = "categorical_crossentropy",
   optimizer = optimizer_rmsprop(lr = 1e-4),
   metrics = c("acc"))
 ```
 
 ```{r}
-history_3 <- model %>% fit(
+history_4 <- model_4 %>% fit(
     train_generator_10,
     steps_per_epoch = 5,
     epochs = 30,
     validation_data = validation_generator_10,
-    validation_steps = 5)
+    validation_steps = 10)
 ```
 
 ```{r}
-history_3
+history_4
 ```
 
 ```{r}
@@ -432,8 +441,12 @@ test_generator_4 <- flow_images_from_directory(
   batch_size = 20,
   class_mode = "categorical"
 )
-model %>% evaluate(test_generator_4, steps = 50)
+model_4 %>% evaluate(test_generator_4, steps = 50)
+#accuracy = 0.19
+#loss = 2.28
 ```
+
+**The convolution neural network has a lower accuracy and higher loss than the standard neural network. For this reason, I would select the standard model over the convolutional model to predict these 10 species. **
 
 In your models, be sure to include the following:
 
